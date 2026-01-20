@@ -5,6 +5,7 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Context and Objectives](#project-context-and-objectives)
+3. [System Architecture](#system-architecture) 
 
 ## Introduction
 **StudyWS** is a web and mobile application that helps high school and university students manage and organize their learning journey. It enables users to create, edit, and manage notes and learning resources within a structured workspace, while integrating document versioning and AI-based microservices for automated learning-content generation. 
@@ -53,7 +54,7 @@ The application supports the following usage flow:
 - **Privacy**: local/on-device processing whenever feasible (e.g., voice transcription)
 
 
-## Architettura del Sistema {#architettura-del-sistema}
+## System Architecture 
 StudyWS adopts a **client–server–microservices** architecture pattern, structured into three main components.
 This design separates the user-facing application layer from the core backend services and the AI-oriented processing layer to improve maintainability and scalability:
 
