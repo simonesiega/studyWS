@@ -6,6 +6,7 @@
 1. [Introduction](#introduction)
 2. [Project Context and Objectives](#project-context-and-objectives)
 3. [System Architecture](#system-architecture) 
+4. [Database](#database)
 
 ## Introduction
 **StudyWS** is a web and mobile application that helps high school and university students manage and organize their learning journey. It enables users to create, edit, and manage notes and learning resources within a structured workspace, while integrating document versioning and AI-based microservices for automated learning-content generation. 
@@ -110,3 +111,49 @@ This design separates the user-facing application layer from the core backend se
 NOTE: **MinIO** is used as a local S3-compatible object storage for development
 and testing. In production, MinIO will be replaced with a managed cloud
 object storage service (e.g., AWS S3 or an equivalent provider).
+
+### Database
+The **Database and Data Model** section explains StudyWS’s database logical structure and how the application’s core information is organized. 
+
+**Description:** The `users` table stores each registered user’s identity, authentication credentials (hashed password), and basic profile info. 
+
+### Table: `users` 
+| Field | Type | Description |
+|---|---|---|
+| id | INT PRIMARY KEY | Unique identifier.  |
+| email | VARCHAR(255) UNIQUE | User email address.  |
+| password_hash | VARCHAR(255) | Password hash (bcrypt).  |
+| first_name | VARCHAR(100) | User first name.  |
+| last_name | VARCHAR(100) | User last name.  |
+| registration_date | TIMESTAMP | Sign-up date.  |
+| last_access | TIMESTAMP | Last login/access time.  |
+
+### Constraints & Indexes
+- Primary Key: `id`
+- Unique: `email`
+
+### Relationships
+- `users (1) -> (N) workspaces` via `workspaces.user_id`
+---
+
+**Description:** The `workspaces` table groups study materials into logical containers owned by a specific user, enabling better organization (e.g., by subject). 
+
+### Table: `workspaces` 
+| Field | Type | Description |
+|---|---|---|
+| id | INT PRIMARY KEY | Unique identifier.  |
+| user_id | INT FOREIGN KEY | References `users.id` (workspace owner).  |
+| name | VARCHAR(255) | Workspace name (e.g., "Physics", "Biology"). **Unique per user** (UNIQUE(`user_id`, `name`)).  |
+| description | TEXT | Optional description.  |
+| cover_image_url | VARCHAR(2048) | Optional cover image URL/path for the workspace (used to visually represent it in the UI). |
+| created_at | TIMESTAMP | When the workspace was created.  |
+
+### Constraints & Indexes
+- Primary Key: `id`
+- Foreign Key: `user_id` -> `users.id`
+- Unique per user: `UNIQUE(user_id, name)`
+
+### Relationships
+- `workspaces (N) -> (1) users` via `user_id`
+- `workspaces (1) -> (N) documents` via `documents.workspace_id` (se presente)
+---
