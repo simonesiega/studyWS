@@ -109,15 +109,16 @@ NOTE: **MinIO** is used as a local S3-compatible object storage for development
 and testing. In production, MinIO will be replaced with a managed cloud
 object storage service (e.g., AWS S3 or an equivalent provider).
 
-### Database
+
+## Database
 The **Database and Data Model** section explains StudyWS’s database logical structure and how the application’s core information is organized. 
 
-**Description:** The `users` table stores each registered user’s identity, authentication credentials (hashed password), and basic profile info. 
 
 ### Table: `users` 
+The `users` table stores each registered user’s identity, authentication credentials (hashed password), and basic profile info. 
 | Field | Type | Description |
 |---|---|---|
-| id | INT PRIMARY KEY | Unique identifier.  |
+| id | **INT PRIMARY KEY** | Unique identifier.  |
 | email | VARCHAR(255) UNIQUE | User email address.  |
 | password_hash | VARCHAR(255) | Password hash (bcrypt).  |
 | first_name | VARCHAR(100) | User first name.  |
@@ -133,13 +134,12 @@ The **Database and Data Model** section explains StudyWS’s database logical st
 - `users (1) -> (N) workspaces` via `workspaces.user_id`
 ---
 
-**Description:** The `workspaces` table groups study materials into logical containers owned by a specific user, enabling better organization (e.g., by subject). 
-
 ### Table: `workspaces` 
+The `workspaces` table groups study materials into logical containers owned by a specific user, enabling better organization (e.g., by subject). 
 | Field | Type | Description |
 |---|---|---|
-| id | INT PRIMARY KEY | Unique identifier.  |
-| user_id | INT FOREIGN KEY | References `users.id` (workspace owner).  |
+| id | **INT PRIMARY KEY** | Unique identifier.  |
+| user_id | *INT FOREIGN KEY* | References `users.id` (workspace owner).  |
 | name | VARCHAR(255) | Workspace name (e.g., "Physics", "Biology"). **Unique per user** (UNIQUE(`user_id`, `name`)).  |
 | description | TEXT | Optional description.  |
 | cover_image_url | VARCHAR(2048) | Optional cover image URL/path for the workspace (used to visually represent it in the UI). |
@@ -154,3 +154,54 @@ The **Database and Data Model** section explains StudyWS’s database logical st
 - `workspaces (N) -> (1) users` via `user_id`
 - `workspaces (1) -> (N) documents` via `documents.workspace_id` (se presente)
 ---
+
+### Table: `documents`
+
+The `documents` table represents the logical container of a document (metadata, ownership, workspace membership) and points to the current version through `current_version_id`. 
+| Field | Type | Description |
+|---|---|---|
+| id | **INT PRIMARY KEY** | Unique identifier. |
+| workspace_id | *INT FOREIGN KEY* | References `workspaces.id` (document container). |
+| owner_id | *INT FOREIGN KEY* | References `users.id` (document creator/owner). |
+| title | VARCHAR(255) | Document title (e.g., “Lecture 3 – Integrals”). |
+| document_type | VARCHAR(50) | E.g., `note`, `pdf`, `ppt`, `audio`, `video` (enum-like). |
+| path | VARCHAR(255) | Path/key to the most recent stored file. |
+| created_at | TIMESTAMP | Creation timestamp. |
+| updated_at | TIMESTAMP | Last update timestamp. |
+
+### Constraints & Indexes
+- Primary Key: `id`.
+- Foreign Keys:
+  - `workspace_id` -> `workspaces.id`
+  - `owner_id` -> `users.id`
+
+### Relationships
+- `workspaces (1) -> (N) documents` via `documents.workspace_id`.
+- `users (1) -> (N) documents` via `documents.owner_id`.
+---
+
+### Table: `document_versions`
+
+The `document_versions` table stores the version history for each document, including a sequential version number, an optional textual diff against the previous version, and metadata about who made the change and when.  
+
+| Field | Type | Description |
+|---|---|---|
+| id | **INT PRIMARY KEY** | Unique identifier. |
+| document_id | *INT FOREIGN KEY* | References `documents.id` (the document being versioned). |
+| author_id | *INT FOREIGN KEY* | References `users.id` (who performed the change). |
+| version_number | INT | Sequential version number (1, 2, 3, ...). |
+| created_at | TIMESTAMPT | When this version was saved. |
+| commit_message | TEXT | Optional description of the change. |
+
+### Constraints & Indexes
+- Primary Key: `id`.
+- Foreign Keys:
+  - `document_id` -> `documents.id`
+  - `author_id` -> `users.id`
+
+### Relationships
+- `documents (1) -> (N) document_versions` via `document_versions.document_id`.
+- `users (1) -> (N) document_versions` via `document_versions.author_id`.
+
+
+
