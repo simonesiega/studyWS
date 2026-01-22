@@ -60,52 +60,49 @@ StudyWS adopts a **client–server–microservices** architecture pattern, struc
 This design separates the user-facing application layer from the core backend services and the AI-oriented processing layer to improve maintainability and scalability:
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                             CLIENT LAYER                             │
-│  Flutter Mobile App / WEB application                                │
-│  • UI + Editor + Version Viewer                                      │
-│  • Audio Record (local)                                              │
-│  • REST client + WebSocket client                                    │
-└───────────────┬────────────────────────────────────┬─────────────────┘
-                │ HTTPS/REST                         │ WebSocket
-                ▼                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                         EDGE / APPLICATION LAYER                       │
-│  Reverse Proxy (Nginx)                                                 │
-│   ├─ PHP Backend REST API (PHP native)                                 │
-│   │   • AuthN/AuthZ (JWT/OAuth2)                                       │
-│   │   • Workspace/Document CRUD                                        │
-│   │   • Versioning logic                                               │
-│   │   • Generates Upload URLs (pre-signed)                             │
-│   │   • Creates AI Jobs + exposes /jobs/{id}                           │
-│   └─ Realtime Gateway (WS)                                             │
-│       • Job progress/events                                            │
-└───────────────┬───────────────────────────────────┬────────────────────┘
-                │ SQL                               │ AI services
-                ▼                                   │
-     ┌──────────────────────┐                       │
-     │  Relational DB       │                       │
-     │  (PostgreSQL)        │                       │
-     │  • users             │                       │
-     │  • workspaces        │                       │
-     │  • documents         │                       │
-     │  • versions          │                       ▼
-     │  • jobs/status       │        ┌──────────────────────────────┐
-     └──────────────────────┘        │  Python Worker Pool          │
-                                     │  (FastAPI)                   │
-                                     │  • Whisper transcription     │
-                                     │  • Summarization             │
-                                     │  • Flashcard generation      │
-                                     │  • Audio processing          │
-                                     └──────────────┬───────────────┘
-                                                    │ read/write artifacts
-                                                    ▼
-                                     ┌────────────────────────────────┐
-                                     │ Object Storage (MinIO – S3)    │
-                                     │ • audio/{id}.m4a               │
-                                     │ • transcripts/{id}.txt         │
-                                     │ • exports/{id}.pdf             │
-                                     └────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                  CLIENT LAYER                                │
+│  Flutter Mobile App / Web Application                                        │
+│  • UI + Editor + Version Viewer                                              │
+│  • Audio Record (local)                                                      │
+│  • REST client + WebSocket client                                            │
+└───────────────────────────────┬───────────────────────────────┬──────────────┘
+                                │ HTTPS / REST                  │ WebSocket
+                                ▼                               ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           EDGE / APPLICATION LAYER                           │
+│  Reverse Proxy (Nginx)                                                       │
+│  ├─ PHP Backend REST API (PHP native)                                        │
+│  │   • AuthN/AuthZ (JWT / OAuth2)                                            │
+│  │   • Workspace/Document CRUD                                               │
+│  │   • Versioning logic                                                      │
+│  │   • Generates Upload URLs (pre-signed)                                    │
+│  │   • Creates AI Jobs + exposes /jobs/{id}                                  │
+│  └─ Realtime Gateway (WS)                                                    │
+│      • Job progress / events                                                 │
+└───────────────────────────────┬───────────────────────────────┬──────────────┘
+                                │ SQL                           │ AI services
+                                ▼                               ▼
+                ┌──────────────────────────┐      ┌──────────────────────────────┐
+                │   Relational DB #1       │      │      Python Worker Pool      │
+                │     (PostgreSQL)         │      │        (FastAPI)             │
+                │  • users                 │      │  • Whisper transcription     │
+                │  • workspaces            │      │  • Summarization             │
+                │  • documents (paths)     │      │  • Flashcard generation      │
+                │  • versions              │      │  • Audio processing          │
+                │  • jobs/status           │      └───────────────┬──────────────┘
+                └──────────────┬───────────┘                      │ read/write artifacts
+                               │ Path                             ▼
+                               ▼                    ┌────────────────────────────────┐
+                ┌──────────────────────────┐        │  Object Storage (MinIO – S3)   │
+                │        File System       │        │  • audio/{id}.m4a              │
+                │  Document storage        │        │  • transcripts/{id}.txt        │
+                │  • PDF                   │        │  • exports/{id}.pdf            │
+                │  • PPT                   │        └────────────────────────────────┘
+                │  • .wav                  │
+                │  • .mp4                  │
+                └──────────────────────────┘
+
 ```
 
 NOTE: **MinIO** is used as a local S3-compatible object storage for development
