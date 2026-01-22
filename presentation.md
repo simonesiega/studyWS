@@ -114,6 +114,8 @@ object storage service (e.g., AWS S3 or an equivalent provider).
 ## Database
 The **Database and Data Model** section explains StudyWS’s database logical structure and how the application’s core information is organized. 
 
+![StudyWS Database ER Diagram](screen/database.png)
+*Figure: StudyWS relational schema (ERD).*
 
 ### Table: `users` 
 The `users` table stores each registered user’s identity, authentication credentials (hashed password), and basic profile info. 
@@ -157,7 +159,6 @@ The `workspaces` table groups study materials into logical containers owned by a
 ---
 
 ### Table: `documents`
-
 The `documents` table represents the logical container of a document (metadata, ownership, workspace membership). 
 | Field | Type | Description |
 |---|---|---|
@@ -184,7 +185,6 @@ The `documents` table represents the logical container of a document (metadata, 
 ---
 
 ### Table: `document_versions`
-
 The `document_versions` table stores the version history for each document, including a sequential version number, an optional textual diff against the previous version, and metadata about who made the change and when.  
 
 | Field | Type | Description |
@@ -205,6 +205,25 @@ The `document_versions` table stores the version history for each document, incl
 ### Relationships
 - `documents (1) -> (N) document_versions` via `document_versions.document_id`.
 - `users (1) -> (N) document_versions` via `document_versions.author_id`.
+---
+
+### Table: `flashcards`
+The `flashcards` table stores Q/A cards linked to a specific `document`, allowing manual editing and deletion of individual cards.
+| Field | Type | Description |
+|---|---|---|
+| id | **INT PRIMARY KEY** | Unique identifier. |
+| document_id | *INT FOREIGN KEY* | References `documents.id` (owner document). |
+| question | TEXT | The question text. |
+| answer | TEXT | The answer text. |
+| difficulty | ENUM | Difficulty level (e.g., `easy`, `medium`, `hard`).|
+| created_at | TIMESTAMP | Creation timestamp. |
+
+#### Constraints & Indexes
+- Primary Key: `id`.
+- Foreign Key: `document_id` -> `documents.id`.
+
+#### Relationships
+- `documents (1) -> (N) flashcards` via `flashcards.document_id`.
 
 ## Endpoints
 All endpoints are public (client-facing) and secured via JWT unless marked otherwise.
@@ -261,13 +280,6 @@ All endpoints are public (client-facing) and secured via JWT unless marked other
 | POST   | /uploads/complete                    | Yes  | Confirm upload finished (optional if needed for consistency). |
 | GET    | /files/{storageKey}/download-url     | Yes  | Create short-lived download URL for an artifact/file. |
 
-### Audio recordings
-| Method | Path                        | Auth | Description |
-|--------|----------------------------|------|-------------|
-| POST   | /documents/{documentId}/audio | Yes  | Create “audio recording” record (returns id + presign info or expects pre-upload). |
-| GET    | /documents/{documentId}/audio | Yes  | List audio items linked to the document. |
-| DELETE | /audio/{audioId}            | Yes  | Delete audio + related artifacts (policy-defined). |
-
 ### Flashcards
 | Method | Path                                           | Auth | Description |
 |--------|-----------------------------------------------|------|-------------|
@@ -282,7 +294,6 @@ All endpoints are public (client-facing) and secured via JWT unless marked other
 |--------|------------------------------------|------|-------------|
 | POST   | /documents/{documentId}/exports     | Yes  | Create export job (PDF). |
 | GET    | /documents/{documentId}/exports     | Yes  | List exports (artifact URLs via download-url endpoint). |
-| GET    | /exports/{exportId}                 | Yes  | Get export metadata + status. |
 
 ### AI Jobs
 | Method | Path                   | Auth | Description |
