@@ -1,6 +1,34 @@
-# StudyWS – Smart Study Platform
-## Version 1.0 – Technical Report
----
+<p align="center">
+  <h1 align="center">StudyWS</h1>
+  <p align="center">
+    Smart Study Platform — workspaces, document versioning, and AI microservices for learning content generation.
+  </p>
+</p>
+
+<p align="center">
+  <a href="https://github.com/simonesiega/studyWS/commits/main">
+    <img alt="Last commit" src="https://img.shields.io/github/last-commit/simonesiega/studyWS" />
+  </a>
+  <a href="https://github.com/simonesiega/studyWS/issues">
+    <img alt="Issues" src="https://img.shields.io/github/issues/simonesiega/studyWS" />
+  </a>
+  <a href="https://github.com/simonesiega/studyWS/stargazers">
+    <img alt="Stars" src="https://img.shields.io/github/stars/simonesiega/studyWS" />
+  </a>
+  <a href="https://github.com/simonesiega/studyWS/network/members">
+    <img alt="Forks" src="https://img.shields.io/github/forks/simonesiega/studyWS" />
+  </a>
+  <a href="https://github.com/simonesiega/studyWS/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/simonesiega/studyWS" />
+  </a>
+</p>
+
+<p align="center">
+  <img alt="PHP" src="https://img.shields.io/badge/PHP-native-777BB4" />
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/DB-PostgreSQL-336791" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/AI-FastAPI-009688" />
+  <img alt="Storage" src="https://img.shields.io/badge/Storage-MinIO%20(S3)-C72E49" />
+</p>
 
 ## Table of Contents
 1. [Introduction](#introduction)
