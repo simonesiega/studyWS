@@ -116,11 +116,18 @@ class Router
 
     /**
      * Handles a matched route:
+     * - Enforces rate limiting for protected endpoints
      * - Enforces authentication when needed
      * - Executes the handler (callable or controller action)
      */
     private function handle(array $route): void
     {
+        // Rate limiting gate (for specific endpoints vulnerable to brute force)
+        if (!RateLimitMiddleware::checkLimit($this->path)) {
+            RateLimitMiddleware::sendTooManyRequests();
+            return;
+        }
+
         // Authentication gate (only for protected routes)
         if ($route['protected']) {
             // Load AuthMiddleware

@@ -38,6 +38,11 @@ try {
     require_once __DIR__ . '/../src/config/config.php';
 
     /**
+     * Load rate limiting middleware.
+     */
+    require_once __DIR__ . '/../src/middleware/RateLimitMiddleware.php';
+
+    /**
      * Load the router that maps METHOD+PATH → Controller::action.
      * The Router also handles "protected routes" (middleware).
      */
