@@ -20,3 +20,6 @@ auth.json
 # --- reminder files ---
 comandi.txt
 todo.txt
+
+# --- work in progress ---
+documentation/
