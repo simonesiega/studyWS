@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <video src="screen/frontend/presentation.mp4" width="700" controls></video>
+    <img src="https://github.com/user-attachments/assets/e691fa60-3ae5-40db-861d-e963d0b0dd6e" width="700" alt="Presentation" />
 </p>
 
 ## Core capabilities
