@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <img src="screen/frontend/views/Subject.svg" alt="Subject view screenshot" width="700" />
+  <video src="screen/frontend/presentation.mp4" width="700" controls></video>
 </p>
 
 ## Core capabilities
@@ -78,7 +78,7 @@ Contributions are welcome.
 
 ## License
 
-This project is licensed under the terms of the MIT [LICENSE](./LICENSE) file.
+This project is licensed under the terms of the Apache 2.0 [LICENSE](./LICENSE) file.
 
 ## Contributors 🧑‍💻
 
