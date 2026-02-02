@@ -53,9 +53,23 @@ class Database
                         PDO::ATTR_EMULATE_PREPARES => false,
                     ]
                 );
-            } catch (PDOException $e) {
-                // Log internal details; throw a generic exception to the caller
-                error_log('Database connection failed: ' . $e->getMessage());
+
+                if (class_exists('Logger')) {
+                    Logger::info('Database connection established', [
+                        'host' => DB_HOST,
+                        'port' => DB_PORT,
+                        'name' => DB_NAME,
+                    ]);
+                }
+            } 
+            catch (PDOException $e) {
+                if (class_exists('Logger')) {
+                    Logger::critical('Database connection failed', [
+                        'error' => $e->getMessage(),
+                        'host' => DB_HOST,
+                        'port' => DB_PORT,
+                    ]);
+                }
                 throw new Exception('Database connection failed', 0, $e);
             }
         }

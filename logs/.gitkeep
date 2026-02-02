@@ -1,0 +1,8 @@
+# This directory contains application logs
+# Subdirectories:
+# - app-YYYY-MM-DD.log: All application logs
+# - error-YYYY-MM-DD.log: Only ERROR, CRITICAL, ALERT, EMERGENCY level logs
+# - debug-YYYY-MM-DD.log: Only DEBUG level logs (development only)
+#
+# Log files are rotated daily automatically
+# Old logs can be cleaned up with Logger::cleanup($days)

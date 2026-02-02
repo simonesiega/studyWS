@@ -101,6 +101,14 @@ class AuthController
             // Create the user in DB 
             $userId = UserRepository::create($email, $passwordHash, $firstName, $lastName);
 
+            if (class_exists('Logger')) {
+                Logger::info('User registered', [
+                    'user_id' => $userId,
+                    'email' => $email,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
+
             // Issue tokens:
             // - access_token: short-lived JWT used in Authorization header
             // - refresh_token: long-lived JWT used to obtain a new access token later
@@ -142,6 +150,14 @@ class AuthController
         } 
         catch (Exception $e) {
             // Convert thrown Exceptions into a consistent JSON error response
+            if (class_exists('Logger')) {
+                Logger::warning('User registration failed', [
+                    'email' => $this->request['email'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
             http_response_code($e->getCode() ?: 400);
             $this->response = [
                 'success' => false,
@@ -205,11 +221,24 @@ class AuthController
             // Load user record by email from DB
             $user = UserRepository::findByEmail($email);
             if (!$user) {
+                if (class_exists('Logger')) {
+                    Logger::warning('Login failed: user not found', [
+                        'email' => $email,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 throw new Exception('Invalid credentials', 401);
             }
 
             // Verify password against stored bcrypt hash
             if (!password_verify($password, $user['password_hash'])) {
+                if (class_exists('Logger')) {
+                    Logger::warning('Login failed: invalid password', [
+                        'user_id' => $user['id'],
+                        'email' => $email,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 throw new Exception('Invalid credentials', 401);
             }
 
@@ -233,6 +262,15 @@ class AuthController
                 $_SERVER['HTTP_USER_AGENT'] ?? '',
                 $_SERVER['REMOTE_ADDR'] ?? ''
             );
+
+            if (class_exists('Logger')) {
+                Logger::info('User logged in', [
+                    'user_id' => $userId,
+                    'email' => $email,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    'session_id' => $sessionId,
+                ]);
+            }
 
             // Build success response
             $this->response = [
@@ -312,6 +350,11 @@ class AuthController
             // Verify JWT signature/expiry and ensure it's a refresh token
             $payload = JWT::verify($refreshToken);
             if (!$payload || ($payload['type'] ?? null) !== 'refresh') {
+                if (class_exists('Logger')) {
+                    Logger::warning('Token refresh failed: invalid token', [
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 throw new Exception('Invalid refresh token', 401);
             }
 
@@ -324,6 +367,12 @@ class AuthController
             $session = SessionRepository::findByTokenHash($userId, $refreshTokenHash);
 
             if (!$session) {
+                if (class_exists('Logger')) {
+                    Logger::warning('Token refresh failed: token not found', [
+                        'user_id' => $userId,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 // // Token is expired/revoked/unknown (or DB cleaned it up)
                 throw new Exception('Refresh token not found or revoked', 401);
             }
@@ -346,6 +395,14 @@ class AuthController
                 $_SERVER['HTTP_USER_AGENT'] ?? '',
                 $_SERVER['REMOTE_ADDR'] ?? ''
             );
+
+            if (class_exists('Logger')) {
+                Logger::debug('Token refreshed', [
+                    'user_id' => $userId,
+                    'session_id' => $newSessionId,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
 
             // Return the rotated tokens to the client
             $this->response = [
@@ -406,6 +463,13 @@ class AuthController
 
             // Revoke all active sessions for the user (logout from all devices)
             SessionRepository::revokeAllForUser($userId);
+
+            if (class_exists('Logger')) {
+                Logger::info('User logged out', [
+                    'user_id' => $userId,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
 
             $this->response = [
                 'success' => true,
