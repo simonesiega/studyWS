@@ -16,3 +16,10 @@ auth.json
 /.idea/
 /.vscode/
 *.swp
+
+# --- reminder files ---
+comandi.txt
+todo.txt
+
+# --- work in progress ---
+documentation/
