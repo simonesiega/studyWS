@@ -377,6 +377,22 @@ class AuthController
                 throw $e;
             }
         }
+        catch (Exception $e) {
+            // Convert exceptions into JSON error response
+            if (class_exists('Logger')) {
+                Logger::warning('Login failed', [
+                    'email' => $this->request['email'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
+            http_response_code($e->getCode() ?: 400);
+            $this->response = [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 
     /**
