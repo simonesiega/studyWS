@@ -27,19 +27,6 @@ export const authApi = {
 
     return res.data.user;
   },
-  /*
-  async login({ email, password }) {
-    const res = await http.post('/auth/login', {
-      email,
-      password
-    });
-
-    tokenStore.setAccessToken(res.data.access_token);
-    tokenStore.setRefreshToken(res.data.refresh_token);
-
-    return res.data.user;
-  },*/
-
   /**
    * Login a user and store tokens.
    *

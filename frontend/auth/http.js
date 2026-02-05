@@ -10,7 +10,7 @@
  */
 import { tokenStore } from './tokenStore';
 
-const API_BASE_URL = 'https://api.studyws.com';
+const API_BASE_URL = 'http://localhost:8080';
 
 /**
  * Make a JSON request to the API.
