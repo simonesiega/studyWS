@@ -53,9 +53,24 @@ class Database
                         PDO::ATTR_EMULATE_PREPARES => false,
                     ]
                 );
-            } catch (PDOException $e) {
-                // Log internal details; throw a generic exception to the caller
-                error_log('Database connection failed: ' . $e->getMessage());
+
+                // Log successful connection
+                if (class_exists('Logger')) {
+                    Logger::info('Database connection established', [
+                        'host' => DB_HOST,
+                        'port' => DB_PORT,
+                        'name' => DB_NAME,
+                    ]);
+                }
+            } 
+            catch (PDOException $e) {
+                if (class_exists('Logger')) {
+                    Logger::critical('Database connection failed', [
+                        'error' => $e->getMessage(),
+                        'host' => DB_HOST,
+                        'port' => DB_PORT,
+                    ]);
+                }
                 throw new Exception('Database connection failed', 0, $e);
             }
         }
@@ -129,13 +144,15 @@ class Database
      *
      * @param string $sql INSERT query.
      * @param array $params Bound parameters.
-     *
+     * 
      * @return int lastInsertId() cast to int.
      */
     public static function insert(string $sql, array $params = []): int
     {
+        // Execute the insert query
         self::query($sql, $params);
 
+        // Return the last inserted ID
         return (int)self::getConnection()->lastInsertId();
     }
 
@@ -144,12 +161,119 @@ class Database
      *
      * @param string $sql SQL query.
      * @param array $params Bound parameters.
-     *
+     * 
      * @return int Number of affected rows.
      */
     public static function execute(string $sql, array $params = []): int
     {
+        // Execute the query
         $stmt = self::query($sql, $params);
         return $stmt->rowCount();
+    }
+
+    /**
+     * Begin a database transaction.
+     * 
+     * Used for multi-step operations to ensure atomicity.
+     * If any step fails, the entire transaction is rolled back.
+     * 
+     * Example:
+     *   Database::beginTransaction();
+     *   try {
+     *       Database::execute("INSERT ...");
+     *       Database::execute("INSERT ...");
+     *       Database::commit();
+     *   } catch (Exception $e) {
+     *       Database::rollback();
+     *       throw $e;
+     *   }
+     *
+     * @return bool True if transaction started successfully.
+     * @throws Exception If transaction is already active.
+     */
+    public static function beginTransaction(): bool
+    {
+        // Get PDO connection
+        $pdo = self::getConnection();
+        
+        // Check for existing transaction
+        if ($pdo->inTransaction()) {
+            throw new Exception('Transaction already in progress', 400);
+        }
+
+        $result = $pdo->beginTransaction();
+        
+        // Log begin transaction event
+        if (class_exists('Logger') && $result) {
+            Logger::debug('Database transaction started');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Commit the current database transaction.
+     * 
+     * All changes made since beginTransaction() are permanently saved.
+     *
+     * @return bool True if commit was successful.
+     * @throws Exception If no transaction is active.
+     */
+    public static function commit(): bool
+    {   
+        // Get PDO connection
+        $pdo = self::getConnection();
+
+        // Check for active transaction
+        if (!$pdo->inTransaction()) {
+            throw new Exception('No active transaction to commit', 400);
+        }
+
+        $result = $pdo->commit();
+
+        // Log commit event
+        if (class_exists('Logger') && $result) {
+            Logger::debug('Database transaction committed');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Roll back the current database transaction.
+     *
+     * All changes made since beginTransaction() are discarded.
+     *
+     * @return bool True if the rollback was successful.
+     * @throws Exception If no transaction is active.
+     */
+    public static function rollback(): bool
+    {
+        // Get PDO connection
+        $pdo = self::getConnection();
+
+        // Check for active transaction
+        if (!$pdo->inTransaction()) {
+            throw new Exception('No active transaction to rollback', 400);
+        }
+
+        $result = $pdo->rollback();
+
+        // Log rollback event
+        if (class_exists('Logger')) {
+            Logger::warning('Database transaction rolled back');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Check whether a transaction is currently active on the PDO connection.
+     *
+     * @return bool True if a transaction is in progress, false otherwise.
+     */
+    public static function inTransaction(): bool
+    {
+        return self::getConnection()->inTransaction();
     }
 }

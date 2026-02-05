@@ -98,50 +98,109 @@ class AuthController
 
             // Hash the password
             $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-            // Create the user in DB 
-            $userId = UserRepository::create($email, $passwordHash, $firstName, $lastName);
 
-            // Issue tokens:
-            // - access_token: short-lived JWT used in Authorization header
-            // - refresh_token: long-lived JWT used to obtain a new access token later
-            $accessToken  = JWT::createAccessToken($userId, $email);
-            $refreshToken = JWT::createRefreshToken($userId, $email);
+            // BEGIN TRANSACTION: User creation + session creation must be atomic
+            Database::beginTransaction();
 
-            // Store refresh token server-side as a hash (so DB leaks won't expose real tokens)
-            $refreshTokenHash = hash('sha256', $refreshToken);
-            $expiresAt = time() + JWT_REFRESH_EXPIRY;
+            try {
+                // Create the user in DB 
+                $userId = UserRepository::create($email, $passwordHash, $firstName, $lastName);
 
-            // Create a session row in DB
-            $sessionId = SessionRepository::create(
-                $userId,
-                $refreshTokenHash,
-                $expiresAt,
-                $_SERVER['HTTP_USER_AGENT'] ?? '',
-                $_SERVER['REMOTE_ADDR'] ?? ''
-            );
-
-            // Build JSON response payload
-            $this->response = [
-                'success' => true,
-                'data' => [
-                    'user' => [
-                        'id' => $userId,
+                // Log the user creation
+                if (class_exists('Logger')) {
+                    Logger::debug('User created in transaction', [
+                        'user_id' => $userId,
                         'email' => $email,
-                        'first_name' => $firstName,
-                        'last_name' => $lastName,
-                    ],
-                    'access_token' => $accessToken,
-                    'refresh_token' => $refreshToken,
-                    'token_type' => 'Bearer',
-                    'expires_in' => JWT_ACCESS_EXPIRY,
-                    'session_id' => $sessionId,
-                ],
-            ];
+                    ]);
+                }
 
-            http_response_code(201);
+                // Issue tokens:
+                // - access_token: short-lived JWT used in Authorization header
+                // - refresh_token: long-lived JWT used to obtain a new access token later
+                $accessToken  = JWT::createAccessToken($userId, $email);
+                $refreshToken = JWT::createRefreshToken($userId, $email);
+
+                // Store refresh token server-side as a hash (so DB leaks won't expose real tokens)
+                $refreshTokenHash = hash('sha256', $refreshToken);
+                $expiresAt = time() + JWT_REFRESH_EXPIRY;
+
+                // Create a session row in DB
+                $sessionId = SessionRepository::create(
+                    $userId,
+                    $refreshTokenHash,
+                    $expiresAt,
+                    $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    $_SERVER['REMOTE_ADDR'] ?? ''
+                );
+
+                // Log the session creation
+                if (class_exists('Logger')) {
+                    Logger::debug('Session created in transaction', [
+                        'user_id' => $userId,
+                        'session_id' => $sessionId,
+                    ]);
+                }
+
+                // COMMIT: Both user and session created successfully
+                Database::commit();
+
+                if (class_exists('Logger')) {
+                    Logger::info('User registered', [
+                        'user_id' => $userId,
+                        'email' => $email,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                        'session_id' => $sessionId,
+                    ]);
+                }
+
+                // Build JSON response payload
+                $this->response = [
+                    'success' => true,
+                    'data' => [
+                        'user' => [
+                            'id' => $userId,
+                            'email' => $email,
+                            'first_name' => $firstName,
+                            'last_name' => $lastName,
+                        ],
+                        'access_token' => $accessToken,
+                        'refresh_token' => $refreshToken,
+                        'token_type' => 'Bearer',
+                        'expires_in' => JWT_ACCESS_EXPIRY,
+                        'session_id' => $sessionId,
+                    ],
+                ];
+
+                http_response_code(201);
+            } 
+            catch (Exception $e) {
+                // If anything fails during the transaction, rollback everything
+                if (Database::inTransaction()) {
+                    Database::rollback();
+                }
+
+                // Log the failure of the registration transaction
+                if (class_exists('Logger')) {
+                    Logger::warning('User registration transaction failed', [
+                        'email' => $email,
+                        'error' => $e->getMessage(),
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
+
+                throw $e;
+            }
         } 
         catch (Exception $e) {
             // Convert thrown Exceptions into a consistent JSON error response
+            if (class_exists('Logger')) {
+                Logger::warning('User registration failed', [
+                    'email' => $this->request['email'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
             http_response_code($e->getCode() ?: 400);
             $this->response = [
                 'success' => false,
@@ -205,56 +264,129 @@ class AuthController
             // Load user record by email from DB
             $user = UserRepository::findByEmail($email);
             if (!$user) {
+                if (class_exists('Logger')) {
+                    Logger::warning('Login failed: user not found', [
+                        'email' => $email,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 throw new Exception('Invalid credentials', 401);
             }
 
             // Verify password against stored bcrypt hash
             if (!password_verify($password, $user['password_hash'])) {
+                if (class_exists('Logger')) {
+                    Logger::warning('Login failed: invalid password', [
+                        'user_id' => $user['id'],
+                        'email' => $email,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 throw new Exception('Invalid credentials', 401);
             }
 
             $userId = (int)$user['id'];
 
-            // Update last_access for auditing/UX
-            UserRepository::updateLastAccess($userId);
+            // BEGIN TRANSACTION: Update last_access + create session must be atomic
+            Database::beginTransaction();
 
-            // Issue new tokens for this login
-            $accessToken  = JWT::createAccessToken($userId, $email);
-            $refreshToken = JWT::createRefreshToken($userId, $email);
+            try {
+                // Update last_access for auditing/UX
+                UserRepository::updateLastAccess($userId);
 
-            // Persist refresh token as hashed session (enables logout + refresh rotation)
-            $refreshTokenHash = hash('sha256', $refreshToken);
-            $expiresAt = time() + JWT_REFRESH_EXPIRY;
+                // Log the last_access update
+                if (class_exists('Logger')) {
+                    Logger::debug('User last_access updated in transaction', [
+                        'user_id' => $userId,
+                    ]);
+                }
 
-            $sessionId = SessionRepository::create(
-                $userId,
-                $refreshTokenHash,
-                $expiresAt,
-                $_SERVER['HTTP_USER_AGENT'] ?? '',
-                $_SERVER['REMOTE_ADDR'] ?? ''
-            );
+                // Issue new tokens for this login
+                $accessToken  = JWT::createAccessToken($userId, $email);
+                $refreshToken = JWT::createRefreshToken($userId, $email);
 
-            // Build success response
-            $this->response = [
-                'success' => true,
-                'data' => [
-                    'user' => [
-                        'id' => $userId,
-                        'email' => $user['email'],
-                        'first_name' => $user['first_name'],
-                        'last_name' => $user['last_name'],
+                // Persist refresh token as hashed session (enables logout + refresh rotation)
+                $refreshTokenHash = hash('sha256', $refreshToken);
+                $expiresAt = time() + JWT_REFRESH_EXPIRY;
+
+                $sessionId = SessionRepository::create(
+                    $userId,
+                    $refreshTokenHash,
+                    $expiresAt,
+                    $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    $_SERVER['REMOTE_ADDR'] ?? ''
+                );
+
+                // Log the session creation
+                if (class_exists('Logger')) {
+                    Logger::debug('Session created in transaction', [
+                        'user_id' => $userId,
+                        'session_id' => $sessionId,
+                    ]);
+                }
+
+                // COMMIT: Both last_access and session created successfully
+                Database::commit();
+
+                // Log successful login
+                if (class_exists('Logger')) {
+                    Logger::info('User logged in', [
+                        'user_id' => $userId,
+                        'email' => $email,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                        'session_id' => $sessionId,
+                    ]);
+                }
+
+                // Build success response
+                $this->response = [
+                    'success' => true,
+                    'data' => [
+                        'user' => [
+                            'id' => $userId,
+                            'email' => $user['email'],
+                            'first_name' => $user['first_name'],
+                            'last_name' => $user['last_name'],
+                        ],
+                        'access_token' => $accessToken,
+                        'refresh_token' => $refreshToken,
+                        'token_type' => 'Bearer',
+                        'expires_in' => JWT_ACCESS_EXPIRY,
+                        'session_id' => $sessionId,
                     ],
-                    'access_token' => $accessToken,
-                    'refresh_token' => $refreshToken,
-                    'token_type' => 'Bearer',
-                    'expires_in' => JWT_ACCESS_EXPIRY,
-                    'session_id' => $sessionId,
-                ],
-            ];
+                ];
 
-            http_response_code(200);
-        } 
+                http_response_code(200);
+            } 
+            catch (Exception $e) {
+                // If anything fails, rollback everything
+                if (Database::inTransaction()) {
+                    Database::rollback();
+                }
+
+                // Log the failure of the login transaction
+                if (class_exists('Logger')) {
+                    Logger::warning('Login transaction failed', [
+                        'user_id' => $userId,
+                        'email' => $email,
+                        'error' => $e->getMessage(),
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
+
+                throw $e;
+            }
+        }
         catch (Exception $e) {
+            // Convert exceptions into JSON error response
+            if (class_exists('Logger')) {
+                Logger::warning('Login failed', [
+                    'email' => $this->request['email'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
             http_response_code($e->getCode() ?: 400);
             $this->response = [
                 'success' => false,
@@ -312,6 +444,11 @@ class AuthController
             // Verify JWT signature/expiry and ensure it's a refresh token
             $payload = JWT::verify($refreshToken);
             if (!$payload || ($payload['type'] ?? null) !== 'refresh') {
+                if (class_exists('Logger')) {
+                    Logger::warning('Token refresh failed: invalid token', [
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
                 throw new Exception('Invalid refresh token', 401);
             }
 
@@ -323,44 +460,103 @@ class AuthController
             $refreshTokenHash = hash('sha256', $refreshToken);
             $session = SessionRepository::findByTokenHash($userId, $refreshTokenHash);
 
+            // If no matching session, the token is expired/revoked/unknown
             if (!$session) {
-                // // Token is expired/revoked/unknown (or DB cleaned it up)
+                if (class_exists('Logger')) {
+                    Logger::warning('Token refresh failed: token not found', [
+                        'user_id' => $userId,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
+                // If no matching session, the token is expired/revoked/unknown (or DB cleaned it up)
                 throw new Exception('Refresh token not found or revoked', 401);
             }
 
-            // Rotation: revoke the old session so this refresh token becomes one-time use
-            SessionRepository::revoke((int)$session['id']);
+            // BEGIN TRANSACTION: Revoke old session + create new session must be atomic
+            Database::beginTransaction();
 
-            // Issue a new access token + a new refresh token
-            $newAccessToken  = JWT::createAccessToken($userId, $email);
-            $newRefreshToken = JWT::createRefreshToken($userId, $email);
+            try {
+                // Rotation: revoke the old session so this refresh token becomes one-time use
+                SessionRepository::revoke((int)$session['id']);
 
-            // Persist the new refresh token as a new DB session row
-            $newRefreshTokenHash = hash('sha256', $newRefreshToken);
-            $expiresAt = time() + JWT_REFRESH_EXPIRY;
+                // Log the revocation of the old session
+                if (class_exists('Logger')) {
+                    Logger::debug('Old session revoked in transaction', [
+                        'user_id' => $userId,
+                        'old_session_id' => $session['id'],
+                    ]);
+                }
 
-            $newSessionId = SessionRepository::create(
-                $userId,
-                $newRefreshTokenHash,
-                $expiresAt,
-                $_SERVER['HTTP_USER_AGENT'] ?? '',
-                $_SERVER['REMOTE_ADDR'] ?? ''
-            );
+                // Issue a new access token + a new refresh token
+                $newAccessToken  = JWT::createAccessToken($userId, $email);
+                $newRefreshToken = JWT::createRefreshToken($userId, $email);
 
-            // Return the rotated tokens to the client
-            $this->response = [
-                'success' => true,
-                'data' => [
-                    'access_token' => $newAccessToken,
-                    'refresh_token' => $newRefreshToken,
-                    'token_type' => 'Bearer',
-                    'expires_in' => JWT_ACCESS_EXPIRY,
-                    'session_id' => $newSessionId,
-                ],
-            ];
+                // Persist the new refresh token as a new DB session row
+                $newRefreshTokenHash = hash('sha256', $newRefreshToken);
+                $expiresAt = time() + JWT_REFRESH_EXPIRY;
 
-            http_response_code(200);
+                $newSessionId = SessionRepository::create(
+                    $userId,
+                    $newRefreshTokenHash,
+                    $expiresAt,
+                    $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    $_SERVER['REMOTE_ADDR'] ?? ''
+                );
+
+                // Log the new session creation
+                if (class_exists('Logger')) {
+                    Logger::debug('New session created in transaction', [
+                        'user_id' => $userId,
+                        'new_session_id' => $newSessionId,
+                    ]);
+                }
+
+                // COMMIT: Both revoke and create succeeded, token rotation complete
+                Database::commit();
+
+                // Log the successful token refresh
+                if (class_exists('Logger')) {
+                    Logger::debug('Token refreshed', [
+                        'user_id' => $userId,
+                        'old_session_id' => $session['id'],
+                        'new_session_id' => $newSessionId,
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
+
+                // Return the rotated tokens to the client
+                $this->response = [
+                    'success' => true,
+                    'data' => [
+                        'access_token' => $newAccessToken,
+                        'refresh_token' => $newRefreshToken,
+                        'token_type' => 'Bearer',
+                        'expires_in' => JWT_ACCESS_EXPIRY,
+                        'session_id' => $newSessionId,
+                    ],
+                ];
+
+                http_response_code(200);
+            }
+            catch (Exception $e) {
+                // If anything fails, rollback token rotation
+                if (Database::inTransaction()) {
+                    Database::rollback();
+                }
+
+                // Log the failure of token refresh transaction
+                if (class_exists('Logger')) {
+                    Logger::warning('Token refresh transaction failed', [
+                        'user_id' => $userId,
+                        'error' => $e->getMessage(),
+                        'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    ]);
+                }
+
+                throw $e;
+            }
         } 
+        // Handle exceptions during token refresh
         catch (Exception $e) {
             http_response_code($e->getCode() ?: 400);
             $this->response = [
@@ -394,6 +590,7 @@ class AuthController
     public function logout(): void
     {
         try {
+            // Ensure the request is authenticated via AuthMiddleware
             if (!AuthMiddleware::isAuthenticated()) {
                 throw new Exception('Unauthorized', 401);
             }
@@ -407,13 +604,24 @@ class AuthController
             // Revoke all active sessions for the user (logout from all devices)
             SessionRepository::revokeAllForUser($userId);
 
+            // Log the logout event
+            if (class_exists('Logger')) {
+                Logger::info('User logged out', [
+                    'user_id' => $userId,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+                ]);
+            }
+
+            // Build success response
             $this->response = [
                 'success' => true,
                 'message' => 'Logged out successfully',
             ];
 
             http_response_code(200);
-        } catch (Exception $e) {
+        } 
+        // Handle exceptions during logout
+        catch (Exception $e) {
             http_response_code($e->getCode() ?: 400);
             $this->response = [
                 'success' => false,

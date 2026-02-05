@@ -38,6 +38,27 @@ try {
     require_once __DIR__ . '/../src/config/config.php';
 
     /**
+     * Initialize structured logging
+     */
+    require_once __DIR__ . '/../src/utils/LogLevel.php';
+    require_once __DIR__ . '/../src/utils/Logger.php';
+
+    Logger::init(
+        logsDir: LOGS_DIR,
+        environment: APP_ENV,
+        echoToStdout: LOG_TO_STDOUT,
+        minLevel: LOG_LEVEL
+    );
+
+    // Log application startup
+    Logger::info('Application started', [
+        'env' => APP_ENV,
+        'debug' => APP_DEBUG ? 'enabled' : 'disabled',
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'path' => $_SERVER['REQUEST_URI'],
+    ]);
+
+    /**
      * Load rate limiting middleware.
      */
     require_once __DIR__ . '/../src/middleware/RateLimitMiddleware.php';
@@ -60,7 +81,17 @@ catch (Throwable $e) {
      * - Returns a JSON response to the client.
      * - Shows the real message only when APP_DEBUG is enabled; otherwise returns a generic message (safer for production).
      */
-    error_log('Fatal error: ' . $e->getMessage());
+    if (class_exists('Logger')) {
+        Logger::critical('Unhandled exception', [
+            'error' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+    } else {
+        error_log('Fatal error: ' . $e->getMessage());
+    }
 
     // Internal Server Error
     http_response_code(500);

@@ -77,10 +77,26 @@ class RateLimitMiddleware
             self::cleanup();
 
             // Check if limit exceeded
-            return $requestCount < $maxRequests;
+            $allowed = $requestCount < $maxRequests;
+
+            if (!$allowed && class_exists('Logger')) {
+                Logger::warning('Rate limit exceeded', [
+                    'path' => $path,
+                    'ip' => $clientIp,
+                    'requests' => $requestCount,
+                    'max' => $maxRequests,
+                ]);
+            }
+
+            return $allowed;
         } 
         catch (Exception $e) {
-            error_log('[RateLimit] Error: ' . $e->getMessage());
+            if (class_exists('Logger')) {
+                Logger::error('Rate limit check failed', [
+                    'path' => $path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             // If DB fails, allow the request (don't break the app)
             return true;
         }
@@ -134,8 +150,11 @@ class RateLimitMiddleware
             Database::execute($sql, [':cutoff' => $cutoffTime]);
         } 
         catch (Exception $e) {
-            // Silently fail cleanup; it's not critical
-            error_log('[RateLimit] Cleanup error: ' . $e->getMessage());
+            if (class_exists('Logger')) {
+                Logger::debug('Rate limit cleanup error', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }
