@@ -8,7 +8,7 @@
  *
  * @module http
  */
-import { tokenStore } from './tokenStore';
+import { tokenStore } from '../tokenStore';
 
 const API_BASE_URL = 'http://localhost:8080';
 
