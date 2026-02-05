@@ -40,21 +40,24 @@ class Router
      */
     private function registerRoutes(): void
     {
-        // Auth routes (public)
+        // API
         $this->post('/auth/register', 'AuthController@register');
         $this->post('/auth/login', 'AuthController@login');
         $this->post('/auth/refresh', 'AuthController@refresh');
-
-        // Auth route (protected): requires a valid access token
         $this->post('/auth/logout', 'AuthController@logout', true);
 
-        // Simple health check endpoint (useful for uptime checks / Docker healthchecks)
-        $this->get('/health', function () {
-            return [
-                'service' => 'php-backend',
-                'status' => 'ok',
-            ];
+        $this->get('/health', fn () => ['service' => 'php-backend', 'status' => 'ok']);
+
+        // Frontend entry
+        $this->get('/', fn () => $this->serveFile(__DIR__ . '/../../frontend/index.html', 'text/html'));
+
+        // Static frontend assets: /frontend/qualunque-cosa -> serveFrontendAsset
+        $this->get('/frontend/{path}', function ($path) {
+            return $this->serveFrontendAsset($path);
         });
+
+        // SPA fallback: /qualunque-cosa -> index.html
+        $this->get('/{path}', fn () => $this->serveFile(...index.html...));
     }
 
     /**
@@ -72,6 +75,7 @@ class Router
         ];
     }
 
+    
     /**
      * Register a POST route.
      *
