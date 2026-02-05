@@ -5,7 +5,7 @@
  */
 // src/api/auth.js
 import { http } from './http';
-import { tokenStore } from './tokenStore';
+import { tokenStore } from '../tokenStore';
 
 export const authApi = {
   /**

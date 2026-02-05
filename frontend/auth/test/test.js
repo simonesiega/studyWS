@@ -1,5 +1,5 @@
 import { authApi } from '../auth';
-import { tokenStore } from '../tokenStore';
+import { tokenStore } from '../../tokenStore';
 
 const $ = (sel) => document.querySelector(sel);
 const out = $('#output');
