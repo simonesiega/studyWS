@@ -21,10 +21,9 @@ html,body{
 body::after{
   content:"";
   position:fixed;
-  left:-50%;
-  right:-50%;
-  bottom:-40%;
+  width:100%;
   height:120vh;
+  bottom:-40%;
   background:
     radial-gradient(50% 50% at 50% 80%,
       rgba(255,255,255,.9) 30%,
@@ -50,7 +49,6 @@ body::after{
   display:flex;
   justify-content:center;
   align-items:center;
-  transition:transform 1s cubic-bezier(.77,0,.18,1);
 }
 
 .logo-area img{
@@ -78,7 +76,6 @@ body::after{
     transform .9s cubic-bezier(.77,0,.18,1),
     opacity .6s ease;
 }
-
 
 .form h1{
   margin:0 0 10px;
@@ -133,6 +130,50 @@ button{
   font-size:12px;
 }
 
+/* KEYFRAMES LOGO - curva smooth */
+@keyframes logoToSignup {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(50%) translateY(-25%);
+  }
+  100% {
+    transform: translateX(100%) translateY(0);
+  }
+}
+
+@keyframes logoToLogin {
+  0% {
+    transform: translateX(100%) translateY(0);
+  }
+  50% {
+    transform: translateX(50%) translateY(-25%);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+/* KEYFRAMES GLOW - segue il logo */
+@keyframes glowToSignup {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(50%);
+  }
+}
+
+@keyframes glowToLogin {
+  0% {
+    transform: translateX(50%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 /* STATES */
 
 /* LOGIN */
@@ -148,7 +189,11 @@ body.login .login-form{
 }
 
 body.login .logo-area{
-  transform:translateX(0);
+  animation: logoToLogin 1s cubic-bezier(.65,.05,.36,1) forwards;
+}
+
+body.login::after{
+  animation: glowToLogin 1s cubic-bezier(.65,.05,.36,1) forwards;
 }
 
 /* SIGNUP */
@@ -164,5 +209,9 @@ body.signup .signup-form{
 }
 
 body.signup .logo-area{
-  transform:translateX(100%);
+  animation: logoToSignup 1s cubic-bezier(.65,.05,.36,1) forwards;
+}
+
+body.signup::after{
+  animation: glowToSignup 1s cubic-bezier(.65,.05,.36,1) forwards;
 }
