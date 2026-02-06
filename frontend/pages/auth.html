@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memorandum – Auth</title>
+  <link rel="stylesheet" href="../css/auth.css" />
+</head>
+
+<body class="login">
+
+<main class="auth">
+
+  <!-- LOGO -->
+  <div class="logo-area">
+    <img src="../asset/img/logo/logo.svg" alt="Memorandum logo">
+  </div>
+
+  <!-- PANNELLO FORMS -->
+  <div class="panel">
+
+    <!-- LOGIN -->
+    <section class="form login-form">
+      <h1>Welcome back</h1>
+
+      <input type="text" placeholder="Username">
+      <input type="password" placeholder="Password">
+
+      <a href="#" class="link">Forgot password</a>
+
+      <button class="primary">Login</button>
+
+      <div class="switch">
+        <span>OR</span>
+      </div>
+
+      <button class="secondary" id="toSignup">Sign Up</button>
+    </section>
+
+    <!-- SIGN UP -->
+    <section class="form signup-form">
+      <h1>Sign Up</h1>
+
+      <input type="text" placeholder="Username">
+      <input type="email" placeholder="Email">
+      <input type="password" placeholder="Password">
+
+      <button class="primary">Sign Up</button>
+
+      <p class="small">
+        Already have an account?
+        <a href="#" id="toLogin">Log In</a>
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<script>
+  const body = document.body;
+  document.getElementById("toSignup").onclick = () => {
+    body.classList.remove("login");
+    body.classList.add("signup");
+  };
+  document.getElementById("toLogin").onclick = () => {
+    body.classList.remove("signup");
+    body.classList.add("login");
+  };
+</script>
+
+</body>
+</html>
