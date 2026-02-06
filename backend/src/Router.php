@@ -57,7 +57,7 @@ class Router
         });
 
         // SPA fallback: /qualunque-cosa -> index.html
-        $this->get('/{path}', fn () => $this->serveFile(...index.html...));
+        $this->get('/{path}', fn () => $this->serveFile(__DIR__ . '/../../frontend/index.html', 'text/html'));
     }
 
     /**
@@ -226,5 +226,80 @@ class Router
 
         // Keep output clean (especially for URLs/tokens) and handle unicode nicely.
         echo json_encode($data, JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Serves a static file with appropriate headers.
+     *
+     * @param string $filepath Path to the file
+     * @param string $contentType MIME type of the file
+     */
+    private function serveFile(string $filepath, string $contentType): void
+    {
+        // Check if file exists and is not a directory
+        if (!file_exists($filepath)) {
+            $this->notFound();
+            return;
+        }
+
+        // Set content type header and output file contents
+        header('Content-Type: ' . $contentType);
+        readfile($filepath);
+    }
+
+    /**
+     * Serves a frontend asset file from the frontend directory.
+     *
+     * @param string $path Path to the asset (relative to frontend directory)
+     */
+    private function serveFrontendAsset(string $path): void
+    {
+        // Sanitize path to prevent directory traversal
+        $path = str_replace('..', '', $path);
+        $filepath = __DIR__ . '/../../frontend/' . $path;
+
+        // Check if file exists and is not a directory
+        if (!file_exists($filepath) || is_dir($filepath)) {
+            $this->notFound();
+            return;
+        }
+
+        // Determine content type based on file extension
+        $extension = pathinfo($filepath, PATHINFO_EXTENSION);
+        $contentType = $this->getMimeType($extension);
+
+        header('Content-Type: ' . $contentType);
+        readfile($filepath);
+    }
+
+    /**
+     * Gets MIME type based on file extension.
+     *
+     * @param string $extension File extension (without dot)
+     * @return string MIME type
+     */
+    private function getMimeType(string $extension): string
+    {
+        // Common MIME types 
+        $mimeTypes = [
+            'html' => 'text/html',
+            'htm' => 'text/html',
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'json' => 'application/json',
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'ico' => 'image/x-icon',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'otf' => 'font/otf',
+            'eot' => 'application/vnd.ms-fontobject',
+        ];
+
+        return $mimeTypes[$extension] ?? 'application/octet-stream';
     }
 }

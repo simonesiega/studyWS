@@ -73,7 +73,7 @@ define('APP_DEBUG', $appDebugParsed ?? true);
 define('HASH_ALGORITHM', 'bcrypt');
 
 /* Logging configuration */
-define('LOGS_DIR', $_ENV['LOGS_DIR'] ?? __DIR__ . '/../../logs');
+define('LOGS_DIR', $_ENV['LOGS_DIR'] ?? __DIR__ . '/../../../logs');
 define('LOG_LEVEL', $_ENV['LOG_LEVEL'] ?? (APP_DEBUG ? 'DEBUG' : 'WARNING'));
 define('LOG_TO_STDOUT', filter_var($_ENV['LOG_TO_STDOUT'] ?? 'false', FILTER_VALIDATE_BOOLEAN));
 
