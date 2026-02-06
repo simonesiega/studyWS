@@ -24,6 +24,7 @@ COMMENT ON COLUMN users.registration_date IS 'Account creation timestamp';
 COMMENT ON COLUMN users.last_access IS 'Last login/access timestamp (updated on login)';
 
 
+
 -- ============================================================================
 -- TABLE: sessions
 -- ============================================================================
@@ -60,6 +61,7 @@ COMMENT ON COLUMN sessions.user_agent IS 'Client user-agent for device identific
 COMMENT ON COLUMN sessions.ip IS 'Client IP address for audit trail';
 
 
+
 -- ============================================================================
 -- TABLE: workspaces
 -- ============================================================================
@@ -86,44 +88,17 @@ COMMENT ON COLUMN workspaces.description IS 'Optional workspace description';
 COMMENT ON COLUMN workspaces.cover_image_url IS 'Optional cover image URL/path';
 
 
--- ============================================================================
--- TABLE: document_versions
--- ============================================================================
--- Version history for each document.
-DROP TABLE IF EXISTS document_versions CASCADE;
-
-CREATE TABLE document_versions (
-    id SERIAL PRIMARY KEY,
-    document_id INT,
-    author_id INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-    version_number INT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    commit_message TEXT,
-    UNIQUE(document_id, version_number)
-);
-
-CREATE INDEX idx_document_versions_document_id ON document_versions(document_id);
-CREATE INDEX idx_document_versions_author_id ON document_versions(author_id);
-
-COMMENT ON TABLE document_versions IS 'Version history for documents (supports rollback/restore)';
-COMMENT ON COLUMN document_versions.id IS 'Unique version identifier';
-COMMENT ON COLUMN document_versions.document_id IS 'Document this version belongs to';
-COMMENT ON COLUMN document_versions.author_id IS 'User who created this version';
-COMMENT ON COLUMN document_versions.version_number IS 'Sequential version number (1, 2, 3, ...)';
-COMMENT ON COLUMN document_versions.commit_message IS 'Optional commit message describing the change';
-
 
 -- ============================================================================
 -- TABLE: documents
 -- ============================================================================
--- Logical document containers with metadata, ownership, and current version.
+-- Logical document containers with metadata and ownership.
 DROP TABLE IF EXISTS documents CASCADE;
 
 CREATE TABLE documents (
     id SERIAL PRIMARY KEY,
     workspace_id INT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     owner_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    current_version_id INT REFERENCES document_versions(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     document_type VARCHAR(50),
     storage_key VARCHAR(255),
@@ -133,16 +108,49 @@ CREATE TABLE documents (
 
 CREATE INDEX idx_documents_workspace_id ON documents(workspace_id);
 CREATE INDEX idx_documents_owner_id ON documents(owner_id);
-CREATE INDEX idx_documents_current_version ON documents(current_version_id);
 
 COMMENT ON TABLE documents IS 'Document containers with metadata and version tracking';
 COMMENT ON COLUMN documents.id IS 'Unique document identifier';
 COMMENT ON COLUMN documents.workspace_id IS 'Workspace containing this document';
 COMMENT ON COLUMN documents.owner_id IS 'Document creator/owner';
-COMMENT ON COLUMN documents.current_version_id IS 'Pointer to the current/latest version';
 COMMENT ON COLUMN documents.title IS 'Document title';
 COMMENT ON COLUMN documents.document_type IS 'Type: note, pdf, ppt, audio, video';
 COMMENT ON COLUMN documents.storage_key IS 'Path/key to the stored file in MinIO/S3';
+
+
+
+-- ============================================================================
+-- TABLE: document_versions
+-- ============================================================================
+-- Version history for each document.
+DROP TABLE IF EXISTS document_versions CASCADE;
+
+CREATE TABLE document_versions (
+    id SERIAL PRIMARY KEY,
+    document_id INT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    author_id INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    version_number INT NOT NULL,
+    is_current BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    commit_message TEXT,
+    UNIQUE(document_id, version_number)
+);
+
+CREATE INDEX idx_document_versions_document_id ON document_versions(document_id);
+CREATE INDEX idx_document_versions_author_id ON document_versions(author_id);
+
+CREATE UNIQUE INDEX idx_document_versions_current 
+    ON document_versions(document_id) 
+    WHERE is_current = TRUE;
+
+COMMENT ON TABLE document_versions IS 'Version history for documents (supports rollback/restore)';
+COMMENT ON COLUMN document_versions.id IS 'Unique version identifier';
+COMMENT ON COLUMN document_versions.document_id IS 'Document this version belongs to';
+COMMENT ON COLUMN document_versions.author_id IS 'User who created this version';
+COMMENT ON COLUMN document_versions.version_number IS 'Sequential version number (1, 2, 3, ...)';
+COMMENT ON COLUMN document_versions.is_current IS 'TRUE if this is the current/latest version (only one per document)';
+COMMENT ON COLUMN document_versions.commit_message IS 'Optional commit message describing the change';
+
 
 
 -- ============================================================================
@@ -170,10 +178,31 @@ COMMENT ON COLUMN flashcards.answer IS 'Answer text';
 COMMENT ON COLUMN flashcards.difficulty IS 'Difficulty level: easy, medium, hard';
 
 
+
 -- ============================================================================
--- Foreign Key Constraints (for document_versions.document_id)
+-- TABLE: rate_limit_log
 -- ============================================================================
-ALTER TABLE document_versions
-ADD CONSTRAINT fk_document_versions_document
-FOREIGN KEY (document_id)
-REFERENCES documents(id) ON DELETE CASCADE;
+-- Logs API requests for rate limiting purposes. Tracks per-IP request counts
+-- within time windows to prevent abuse and detect suspicious patterns.
+DROP TABLE IF EXISTS rate_limit_log CASCADE;
+
+CREATE TABLE rate_limit_log (
+    id SERIAL PRIMARY KEY,
+    ip VARCHAR(45) NOT NULL,
+    path VARCHAR(255) NOT NULL,       
+    timestamp INTEGER NOT NULL,       
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_rate_limit_ip_path_timestamp 
+    ON rate_limit_log(ip, path, timestamp);
+
+CREATE INDEX idx_rate_limit_timestamp 
+    ON rate_limit_log(timestamp);
+
+COMMENT ON TABLE rate_limit_log IS 'API request logs for rate limiting and abuse prevention';
+COMMENT ON COLUMN rate_limit_log.id IS 'Unique log entry identifier';
+COMMENT ON COLUMN rate_limit_log.ip IS 'Client IP address making the request (IPv4 or IPv6)';
+COMMENT ON COLUMN rate_limit_log.path IS 'API endpoint path accessed';
+COMMENT ON COLUMN rate_limit_log.timestamp IS 'Unix timestamp of the request for rate window calculations';
+COMMENT ON COLUMN rate_limit_log.created_at IS 'Record insertion timestamp';
