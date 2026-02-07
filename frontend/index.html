@@ -44,22 +44,43 @@
       z-index:1;
     }
 
-    body::after{
-      content:"";
+    .lights-container{
       position:fixed;
-      left:-50%;
-      right:-50%;
-      bottom:-35%;
-      height:120vh;
-      background:
-        radial-gradient(50% 50% at 50% 80%,
-          rgba(255,255,255,.97) 30%,
-          rgba(255,255,255,.50) 40%,
-          rgba(255,255,255,.10) 50%,
-          rgba(255,255,255,0) 70%);
-      filter:blur(20px);
-      opacity:.80;
+      left:50%;
+      bottom:-15vh;
+      transform:translateX(-50%);
+      width:100%;
+      height:60vh;
       pointer-events:none;
+      z-index:1;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+    }
+
+    .light-svg{
+      position:absolute;
+      bottom:0;
+      left:50%;
+      transform:translateX(-50%);
+      pointer-events:none;
+    }
+
+    .light-svg-1{
+      width:834.901px;
+      height:350.435px;
+      z-index:3;
+    }
+
+    .light-svg-2{
+      width:1452.238px;
+      height:610.34px;
+      z-index:2;
+    }
+
+    .light-svg-3{
+      width:1920px;
+      height:806px;
       z-index:1;
     }
 
@@ -151,7 +172,6 @@
       letter-spacing:.22em;
       font-size:clamp(26px, 3.7vw, 34px);
       text-shadow:0 12px 24px var(--shadow);
-      /*text-transform:uppercase; */
       position:relative;
       z-index:4;
     }
@@ -207,19 +227,58 @@
 <body>
   <header class="topbar">
     <button class="icon-btn" aria-label="Impostazioni" title="Impostazioni">
-      <!-- gear -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/>
       </svg>
     </button>
 
     <button class="icon-btn" aria-label="Profilo" title="Profilo">
-      <!-- user -->
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 18.5C20 16 16.42 14 12 14Z"/>
       </svg>
     </button>
   </header>
+
+  <div class="lights-container" aria-hidden="true">
+    <svg class="light-svg light-svg-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 424" fill="none">
+      <g filter="url(#filter0_f_35_35)">
+        <path d="M10 553C10.0001 330.429 439.807 150 970 150C1500.19 150 1930 330.429 1930 553C1930 775.571 1823.52 956 970 956C116.479 956 10 775.571 10 553Z" fill="#2F2F2F"/>
+      </g>
+      <defs>
+        <filter id="filter0_f_35_35" x="-140" y="-3.05176e-05" width="2220" height="1106" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+          <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+          <feGaussianBlur stdDeviation="75" result="effect1_foregroundBlur_35_35"/>
+        </filter>
+      </defs>
+    </svg>
+
+    <svg class="light-svg light-svg-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1753 327" fill="none">
+      <g filter="url(#filter0_f_35_38)">
+        <path d="M150 455.17C150 286.629 475.095 150 876.119 150C1277.14 150 1602.24 286.629 1602.24 455.17C1602.24 623.711 1521.7 760.34 876.119 760.34C230.538 760.34 150 623.711 150 455.17Z" fill="#BCBCBC"/>
+      </g>
+      <defs>
+        <filter id="filter0_f_35_38" x="0" y="0" width="1752.24" height="910.34" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+          <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+          <feGaussianBlur stdDeviation="75" result="effect1_foregroundBlur_35_38"/>
+        </filter>
+      </defs>
+    </svg>
+
+    <svg class="light-svg light-svg-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1135 197" fill="none">
+      <g filter="url(#filter0_f_35_40)">
+        <path d="M150 325.217C150 228.447 336.899 150 567.45 150C798.002 150 984.901 228.448 984.901 325.217C984.901 421.987 938.599 500.435 567.45 500.435C196.302 500.435 150 421.987 150 325.217Z" fill="white"/>
+      </g>
+      <defs>
+        <filter id="filter0_f_35_40" x="0" y="-1.52588e-05" width="1134.9" height="650.435" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+          <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+          <feGaussianBlur stdDeviation="75" result="effect1_foregroundBlur_35_40"/>
+        </filter>
+      </defs>
+    </svg>
+  </div>
 
   <main class="hero">
     <div class="logo-wrap" aria-hidden="true">
