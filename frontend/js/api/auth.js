@@ -54,7 +54,8 @@ const AuthApi = (function() {
       const res = await Http.post('/auth/logout');
       TokenStore.clearTokens();
       return res;
-    } catch (error) {
+    } 
+    catch (error) {
       TokenStore.clearTokens();
       throw error;
     }

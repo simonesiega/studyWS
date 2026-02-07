@@ -48,12 +48,16 @@ class Router
 
         $this->get('/health', fn () => ['service' => 'php-backend', 'status' => 'ok']);
 
-        // Frontend entry
+        // Frontend entry - Landing page
         $this->get('/', fn () => $this->serveFile(__DIR__ . '/../../frontend/index.html', 'text/html'));
 
-        // Static frontend assets: /frontend/qualunque-cosa -> serveFrontendAsset
+        // Static frontend assets: /frontend/... -> serveFrontendAsset
         $this->get('/frontend/{path}', function ($path) {
             return $this->serveFrontendAsset($path);
+        });
+
+        $this->get('/assets/{path}', function ($path) {
+            return $this->serveFrontendAsset('assets/' . $path);
         });
 
         // SPA fallback: /qualunque-cosa -> index.html

@@ -1,8 +1,3 @@
-/* ============================================
-   Memorandum - Token Store
-   Gestione token JWT (access e refresh)
-   ============================================ */
-
 const TokenStore = (function() {
   'use strict';
 
